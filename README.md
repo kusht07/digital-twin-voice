@@ -1,4 +1,4 @@
-# Digital Twin Voice
+# Digital Twin MultiModal (Voice and Text)
 
 A multimodal digital twin chatbot with **text** and **voice** input, powered by OpenAI (LLM + tool calling), Deepgram (speech-to-text and text-to-speech), and Gradio (web UI).
 
@@ -6,7 +6,7 @@ Converted from the `digital-twin-voice2.ipynb` notebook in the AI Engineering co
 
 ## Architecture
 
-See the flow diagram in [`docs/digital-twin-voice-flow.excalidraw`](docs/digital-twin-voice-flow.excalidraw) (open at [excalidraw.com](https://excalidraw.com)).
+![Digital Twin Voice flow chart](docs/Flow-chart.png)
 
 **High-level flow:**
 
@@ -57,7 +57,8 @@ Gradio opens at `http://127.0.0.1:7860` (port may vary). Use the text box or mic
 digital-twin-voice/
 ├── app.py              # Entry point
 ├── config.py           # Environment variables and API clients
-├── prompts.py          # System prompt and topic context
+├── knowledge.md        # Persona facts and topic context
+├── prompts.py          # Loads knowledge.md into the system prompt
 ├── tools.py            # Pushover + dice tools, tool-call handler
 ├── chat.py             # OpenAI chat loop with tool calling
 ├── voice.py            # Deepgram STT / TTS
@@ -65,15 +66,15 @@ digital-twin-voice/
 ├── requirements.txt
 ├── .env.example
 └── docs/
+    ├── Flow-chart.png
     └── digital-twin-voice-flow.excalidraw
 ```
 
 ## Customization
 
-- **Persona:** edit `prompts.py` (`SYSTEM_MESSAGE`, `TOPIC_CONTEXT`)
+- **Persona:** edit `knowledge.md` (main sections + `## Topics` for keyword triggers)
 - **Tools:** add functions in `tools.py` and register them in `TOOLS`
-- **Model:** change `MODEL` in `chat.py` (default: `gpt-4.1-mini`)
-- **Voice:** change Deepgram models in `voice.py` (`nova-3` for STT, `aura-2-thalia-en` for TTS)
+- **Models:** set `OPENAI_MODEL`, `DEEPGRAM_STT_MODEL`, and `DEEPGRAM_TTS_MODEL` in `.env`
 
 ## Environment variables
 
@@ -81,6 +82,9 @@ digital-twin-voice/
 |----------|----------|-------------|
 | `OPENAI_API_KEY` | Yes | OpenAI API key |
 | `DEEPGRAM_API_KEY` | Yes | Deepgram API key |
+| `OPENAI_MODEL` | No | Chat model (default: `gpt-4.1-mini`) |
+| `DEEPGRAM_STT_MODEL` | No | Speech-to-text model (default: `nova-3`) |
+| `DEEPGRAM_TTS_MODEL` | No | Text-to-speech model (default: `aura-2-thalia-en`) |
 | `PUSHOVER_USER` | No | Pushover user key (for notification tool) |
 | `PUSHOVER_TOKEN` | No | Pushover app token (for notification tool) |
 

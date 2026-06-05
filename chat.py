@@ -1,8 +1,6 @@
-from config import ensure_clients, openai_client
+import config
 from prompts import SYSTEM_MESSAGE, TOPIC_CONTEXT
 from tools import TOOLS, handle_tool_call
-
-MODEL = "gpt-4.1-mini"
 
 
 def content_to_text(content) -> str:
@@ -29,13 +27,13 @@ def build_system_prompt(latest_user_message: str) -> str:
 
 def response_ai(history: list[dict]) -> str:
     """history: list of {role, content} chat messages; returns the assistant reply text."""
-    ensure_clients()
+    config.ensure_clients()
     msgs = [{"role": m["role"], "content": content_to_text(m["content"])} for m in history]
     system = build_system_prompt(msgs[-1]["content"])
     messages = [{"role": "system", "content": system}] + msgs
 
-    reply = openai_client.chat.completions.create(
-        model=MODEL,
+    reply = config.openai_client.chat.completions.create(
+        model=config.OPENAI_MODEL,
         messages=messages,
         tools=TOOLS,
     ).choices[0].message
@@ -43,8 +41,8 @@ def response_ai(history: list[dict]) -> str:
     while reply.tool_calls:
         messages.append(reply)
         messages.extend(handle_tool_call(reply.tool_calls))
-        reply = openai_client.chat.completions.create(
-            model=MODEL,
+        reply = config.openai_client.chat.completions.create(
+            model=config.OPENAI_MODEL,
             messages=messages,
             tools=TOOLS,
         ).choices[0].message

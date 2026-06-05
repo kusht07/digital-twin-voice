@@ -11,6 +11,10 @@ DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 PUSHOVER_USER = os.getenv("PUSHOVER_USER")
 PUSHOVER_TOKEN = os.getenv("PUSHOVER_TOKEN")
 
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+DEEPGRAM_STT_MODEL = os.getenv("DEEPGRAM_STT_MODEL", "nova-3")
+DEEPGRAM_TTS_MODEL = os.getenv("DEEPGRAM_TTS_MODEL", "aura-2-thalia-en")
+
 openai_client: OpenAI | None = None
 deepgram_client: DeepgramClient | None = None
 
