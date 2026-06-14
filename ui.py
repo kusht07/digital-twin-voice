@@ -87,9 +87,8 @@ def bot_reply(history):
 
 def create_demo(on_load=None) -> gr.Blocks:
     with gr.Blocks(title="Kush Digital Twin — Voice") as demo:
-        gr.Markdown("# MultiModal Chat")
-        chatbot = gr.Chatbot(show_label=False, height=420, autoscroll=True)
-        text_in = gr.Textbox(show_label=False, placeholder="Type a message…", container=False)
+        chatbot = gr.Chatbot(show_label=False, height=320, autoscroll=True)
+        text_in = gr.Textbox(show_label=False, placeholder="Hey I'm Kush, Type a message to start the conversation", container=False)
         with gr.Column(elem_id="record-box"):
             mic = gr.Audio(
                 sources=["microphone"],
