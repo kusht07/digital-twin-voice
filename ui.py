@@ -9,7 +9,6 @@ CSS = """
 #record-box #mic .wrap, #record-box #mic .form, #record-box #mic .empty,
 #record-box #mic .audio-container { background: transparent !important; }
 #record-box #mic .empty, #record-box #mic .audio-container { min-height: 0 !important; }
-/* Hide the reply player off-screen but keep it rendered so autoplay works */
 #reply-audio { position: absolute !important; width: 1px !important; height: 1px !important;
   overflow: hidden !important; opacity: 0 !important; pointer-events: none !important; }
 """
@@ -28,21 +27,28 @@ RESET_AUDIO_JS = """
 """
 
 
+def chat_message(role: str, text: str) -> dict:
+    """Gradio 6 messages format with structured content blocks."""
+    return {"role": role, "content": [{"type": "text", "text": text}]}
+
+
 def voice_transcribe(audio, history):
     """Step 1: transcribe speech, show it as the user message, and clear the mic."""
+    history = history or []
     if audio is None:
         return history, None
     try:
         transcript = transcribe_audio(audio)
     except Exception as e:
-        return history + [{"role": "assistant", "content": f"Error: {e}"}], None
+        return history + [chat_message("assistant", f"Error: {e}")], None
     if not transcript:
         return history, None
-    return history + [{"role": "user", "content": transcript}], None
+    return history + [chat_message("user", transcript)], None
 
 
 def voice_reply(history):
     """Step 2: LLM reply + autoplayed speech."""
+    history = history or []
     if not history or history[-1]["role"] != "user":
         yield history, None
         return
@@ -50,34 +56,36 @@ def voice_reply(history):
         reply = response_ai(history)
         audio_path = speak_text(reply)
     except Exception as e:
-        yield history + [{"role": "assistant", "content": f"Error: {e}"}], None
+        yield history + [chat_message("assistant", f"Error: {e}")], None
         return
 
-    yield history + [{"role": "assistant", "content": reply}], audio_path
+    yield history + [chat_message("assistant", reply)], audio_path
 
 
 def add_user_message(message, history):
     """Step 1: show the user message and clear the textbox immediately."""
+    history = history or []
     if not message or not message.strip():
         return history, message
-    return history + [{"role": "user", "content": message.strip()}], ""
+    return history + [chat_message("user", message.strip())], ""
 
 
 def bot_reply(history):
     """Step 2: generate the assistant reply in chat only (no TTS)."""
+    history = history or []
     if not history or history[-1]["role"] != "user":
         yield history
         return
     try:
         reply = response_ai(history)
     except Exception as e:
-        yield history + [{"role": "assistant", "content": f"Error: {e}"}]
+        yield history + [chat_message("assistant", f"Error: {e}")]
         return
 
-    yield history + [{"role": "assistant", "content": reply}]
+    yield history + [chat_message("assistant", reply)]
 
 
-def create_demo() -> gr.Blocks:
+def create_demo(on_load=None) -> gr.Blocks:
     with gr.Blocks(title="Kush Digital Twin — Voice") as demo:
         gr.Markdown("# MultiModal Chat")
         chatbot = gr.Chatbot(show_label=False, height=420, autoscroll=True)
@@ -91,7 +99,7 @@ def create_demo() -> gr.Blocks:
                 elem_id="mic",
             )
 
-        audio_out = gr.Audio(autoplay=True, interactive=False, elem_id="reply-audio")
+        audio_out = gr.Audio(autoplay=True, interactive=False, elem_id="reply-audio", buttons=[])
 
         mic.stop_recording(
             voice_transcribe, [mic, chatbot], [chatbot, mic], queue=False,
@@ -103,5 +111,9 @@ def create_demo() -> gr.Blocks:
 
         audio_out.change(None, None, None, js=RESET_AUDIO_JS)
 
+        if on_load is not None:
+            demo.load(on_load, None, None, queue=False)
+
     demo.queue(default_concurrency_limit=1)
+    demo._deprecated_css = CSS
     return demo

@@ -1,8 +1,19 @@
+---
+title: Kush Digital Twin
+emoji: 🎙️
+colorFrom: indigo
+colorTo: blue
+sdk: gradio
+sdk_version: 6.18.0
+app_file: app.py
+pinned: false
+---
+
 # Digital Twin MultiModal (Voice and Text)
 
-A multimodal digital twin chatbot with **text** and **voice** input, powered by OpenAI (LLM + tool calling), Deepgram (speech-to-text and text-to-speech), and Gradio (web UI).
+A multimodal digital twin chatbot with **text** and **voice** input, powered by OpenAI (LLM + RAG + tool calling), Deepgram (speech-to-text and text-to-speech), ChromaDB (vector retrieval), and Gradio (web UI).
 
-Converted from the `digital-twin-voice2.ipynb` notebook in the AI Engineering course.
+Converted from the `digital-twin.ipynb` notebook in the AI Engineering course.
 
 ## Architecture
 
@@ -10,15 +21,23 @@ Converted from the `digital-twin-voice2.ipynb` notebook in the AI Engineering co
 
 **High-level flow:**
 
-1. **Text path** — user types → OpenAI chat (with tools) → reply in chat
-2. **Voice path** — user records → Deepgram STT → OpenAI chat (with tools) → Deepgram TTS → autoplay reply audio
+1. **Text path** — user types → embed query → ChromaDB retrieval → OpenAI chat (with tools) → reply in chat
+2. **Voice path** — user records → Deepgram STT → same RAG + chat pipeline → Deepgram TTS → autoplay reply audio
+
+**RAG pipeline:**
+
+1. Knowledge lives in `knowledge/*.md` (identity, career, technical stack)
+2. `chunking.py` splits documents with overlap at sentence/paragraph boundaries
+3. OpenAI `text-embedding-3-small` embeds each chunk
+4. Vectors are stored in a local ChromaDB collection (`chroma_db_twin/`)
+5. Each user message retrieves the top-N similar chunks and injects them as **Context** in the system prompt
 
 **Tools available to the LLM:**
 
 - `send_notification` — Pushover alert to your phone (optional)
 - `roll_dice` — simulated dice roll
 
-**Dynamic context:** keywords in the user's message (`2011`, `dishes`, `sports`, `vacation`) inject extra persona context into the system prompt.
+**Dynamic context:** keywords in the user's message (`2011`, `dishes`, `sports`, `vacation`) inject extra persona context from `knowledge.md`.
 
 ## Prerequisites
 
@@ -45,22 +64,46 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env and add your API keys
 
+# Build the vector index (also runs automatically on first app launch if empty)
+python build_rag_index.py
+
 # Run the app
 python app.py
 ```
 
 Gradio opens at `http://127.0.0.1:7860` (port may vary). Use the text box or microphone to chat.
 
+## Deploy to Hugging Face Spaces
+
+This repo is ready to deploy as a [Gradio Space](https://huggingface.co/docs/hub/spaces-sdks-gradio). The YAML header at the top of this README configures the Space (`sdk: gradio`, `sdk_version: 6.18.0`, `app_file: app.py`).
+
+1. Create a new Space on Hugging Face and choose **Gradio** as the SDK.
+2. Push this repository (or connect your GitHub repo).
+3. In **Settings → Variables and secrets**, add:
+   - `OPENAI_API_KEY` (required — chat + RAG embeddings)
+   - `DEEPGRAM_API_KEY` (required for voice input/output)
+   - Optional: `PUSHOVER_USER`, `PUSHOVER_TOKEN`, model overrides from `.env.example`
+4. On first load, the app builds the ChromaDB index from `knowledge/*.md` (uses OpenAI embeddings). Cold starts on free Spaces may take ~30s.
+
+For faster restarts, enable [Persistent Storage](https://huggingface.co/docs/hub/spaces-storage) and set `CHROMA_PATH=/data/chroma_db_twin`, then run `python build_rag_index.py` once in the Space terminal.
+
 ## Project layout
 
 ```
 digital-twin-voice/
 ├── app.py              # Entry point
+├── build_rag_index.py  # Rebuild ChromaDB from knowledge files
+├── chunking.py         # Text chunking with overlap
+├── rag.py              # Embeddings, ChromaDB, retrieval
 ├── config.py           # Environment variables and API clients
-├── knowledge.md        # Persona facts and topic context
-├── prompts.py          # Loads knowledge.md into the system prompt
+├── knowledge/          # Source documents for RAG
+│   ├── identity.md
+│   ├── career.md
+│   └── technical.md
+├── knowledge.md        # Keyword topic triggers only
+├── prompts.py          # System prompt + topic loading
 ├── tools.py            # Pushover + dice tools, tool-call handler
-├── chat.py             # OpenAI chat loop with tool calling
+├── chat.py             # OpenAI chat loop with RAG + tool calling
 ├── voice.py            # Deepgram STT / TTS
 ├── ui.py               # Gradio interface
 ├── requirements.txt
@@ -72,9 +115,12 @@ digital-twin-voice/
 
 ## Customization
 
-- **Persona:** edit `knowledge.md` (main sections + `## Topics` for keyword triggers)
+- **Persona facts:** edit files in `knowledge/`, then run `python build_rag_index.py`
+- **Topic keywords:** edit `knowledge.md` under `## Topics`
+- **Chunking:** adjust `RAG_CHUNK_SIZE` and `RAG_CHUNK_OVERLAP` in `.env`
+- **Retrieval depth:** set `RAG_N_RESULTS` in `.env` (default: 3)
 - **Tools:** add functions in `tools.py` and register them in `TOOLS`
-- **Models:** set `OPENAI_MODEL`, `DEEPGRAM_STT_MODEL`, and `DEEPGRAM_TTS_MODEL` in `.env`
+- **Models:** set `OPENAI_MODEL`, `EMBEDDING_MODEL`, `DEEPGRAM_STT_MODEL`, and `DEEPGRAM_TTS_MODEL` in `.env`
 
 ## Environment variables
 
@@ -83,6 +129,12 @@ digital-twin-voice/
 | `OPENAI_API_KEY` | Yes | OpenAI API key |
 | `DEEPGRAM_API_KEY` | Yes | Deepgram API key |
 | `OPENAI_MODEL` | No | Chat model (default: `gpt-4.1-mini`) |
+| `EMBEDDING_MODEL` | No | Embedding model (default: `text-embedding-3-small`) |
+| `RAG_N_RESULTS` | No | Chunks retrieved per query (default: `3`) |
+| `RAG_CHUNK_SIZE` | No | Chunk size in characters (default: `500`) |
+| `RAG_CHUNK_OVERLAP` | No | Overlap between chunks (default: `50`) |
+| `RAG_DEBUG` | No | Print retrieved chunk sources to console |
+| `CHROMA_PATH` | No | ChromaDB directory (default: `chroma_db_twin`) |
 | `DEEPGRAM_STT_MODEL` | No | Speech-to-text model (default: `nova-3`) |
 | `DEEPGRAM_TTS_MODEL` | No | Text-to-speech model (default: `aura-2-thalia-en`) |
 | `PUSHOVER_USER` | No | Pushover user key (for notification tool) |

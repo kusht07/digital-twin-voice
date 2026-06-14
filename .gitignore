@@ -10,3 +10,4 @@ venv/
 dist/
 build/
 .history/
+chroma_db_twin
