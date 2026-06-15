@@ -21,10 +21,14 @@ def dice_roll() -> int:
 
 SEND_NOTIFICATION_FUNCTION = {
     "name": "send_notification",
-    "description": (
-        "Send a notification to real version of you (Kush) phone via Pushover. "
-        "Use this to alert Kush of important events, completed tasks, time-sensitive information, etc."
-    ),
+    "description": 
+        """
+Sends a push notification to the real Kushagra. Use this when:
+1) Someone wants to get in touch, hire, or collaborate
+   – ask for their name and contact details first, then send notification to Kushagra with the name and contact details.
+2) You don't know the answer to a question about Kushagra – send AUTOMATICALLY without asking, include the question so he can add this info later.
+        """
+    ,
     "parameters": {
         "type": "object",
         "properties": {
